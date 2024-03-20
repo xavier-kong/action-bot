@@ -11,24 +11,20 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+func createNewTodoChannel(s *discordgo.Session, i *discordgo.InteractionCreate) {
+}
+
 // Variables used for command line parameters
 var (
 	Token    string
 	commands = []*discordgo.ApplicationCommand{
 		{
-			Name:        "test",
-			Description: "test",
+			Name:        "todo",
+			Description: "Create a new todo (creates a new channel under todo)",
 		},
 	}
 	commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
-		"test": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Content: "Hey there! Congratulations, you just executed your first slash command",
-				},
-			})
-		},
+		"todo": createNewTodoChannel,
 	}
 )
 
@@ -44,9 +40,6 @@ func main() {
 		fmt.Println("error creating Discord session,", err)
 		return
 	}
-
-	// Register the messageCreate func as a callback for MessageCreate events.
-	dg.AddHandler(messageCreate)
 
 	// In this example, we only care about receiving message events.
 	dg.Identify.Intents = discordgo.IntentsGuildMessages
@@ -91,24 +84,4 @@ func main() {
 		}
 	}
 	// Cleanly close down the Discord session.
-}
-
-// This function will be called (due to AddHandler above) every time a new
-// message is created on any channel that the authenticated bot has access to.
-func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-	// Ignore all messages created by the bot itself
-	// This isn't required in this specific example but it's a good practice.
-	if m.Author.ID == s.State.User.ID {
-		return
-	}
-
-	// If the message is "ping" reply with "Pong!"
-	if m.Content == "ping" {
-		s.ChannelMessageSend(m.ChannelID, "Pong!")
-	}
-
-	// If the message is "pong" reply with "Ping!"
-	if m.Content == "pong" {
-		s.ChannelMessageSend(m.ChannelID, "Ping!")
-	}
 }
