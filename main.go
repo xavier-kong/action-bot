@@ -6,12 +6,67 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-func createNewTodoChannel(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func sendCreateTodoDialog(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	channelData, err := s.Channel(i.ChannelID)
+	if err != nil {
+		fmt.Println("error with createNewTodoChannel", err)
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "I have failed you master...an error has occurred",
+			},
+		})
+		return
+	}
+
+	if channelData.Name != "main" {
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: fmt.Sprintf("todo can only be called in main not %s", channelData.Name),
+			},
+		})
+		return
+	}
+
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseModal,
+		Data: &discordgo.InteractionResponseData{
+			CustomID: "todo_" + i.Interaction.Member.User.ID,
+			Title:    "Create new todo",
+			Components: []discordgo.MessageComponent{
+				discordgo.ActionsRow{
+					Components: []discordgo.MessageComponent{
+						discordgo.TextInput{
+							CustomID: "Title",
+							// Label:       "Title",
+							Style:       discordgo.TextInputShort,
+							Placeholder: "Name of your todo",
+							Required:    true,
+							MaxLength:   300,
+						},
+					},
+				},
+				discordgo.ActionsRow{
+					Components: []discordgo.MessageComponent{
+						discordgo.TextInput{
+							CustomID:  "Deadline",
+							Label:     "YYYY-MM-DD format please",
+							Style:     discordgo.TextInputShort,
+							Required:  true,
+							MaxLength: 10,
+						},
+					},
+				},
+			},
+		},
+	})
 }
 
 // Variables used for command line parameters
@@ -24,7 +79,7 @@ var (
 		},
 	}
 	commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
-		"todo": createNewTodoChannel,
+		"todo": sendCreateTodoDialog,
 	}
 )
 
@@ -64,8 +119,17 @@ func main() {
 	}
 
 	dg.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
-			h(s, i)
+		switch i.Type {
+		case discordgo.InteractionApplicationCommand:
+			if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
+				h(s, i)
+			}
+
+		case discordgo.InteractionModalSubmit:
+			modalSubmission := i.ModalSubmitData()
+			if strings.HasPrefix(modalSubmission.CustomID, "todo") {
+				// create channel here
+			}
 		}
 	})
 
