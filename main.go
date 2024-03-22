@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -66,6 +67,40 @@ func sendCreateTodoDialog(s *discordgo.Session, i *discordgo.InteractionCreate) 
 				},
 			},
 		},
+	})
+}
+
+func isValidDate(dateStr string) bool {
+	layout := "2006-01-02"
+	_, err := time.Parse(layout, dateStr)
+	return err == nil
+}
+
+func createNewTodoChannel(s *discordgo.Session, i *discordgo.InteractionCreate, data *discordgo.ModalSubmitInteractionData) {
+	title := data.Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
+	date := data.Components[1].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
+	if len(title) <= 1 {
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "title should be longer than 1",
+			},
+		})
+		return
+	}
+
+	if !isValidDate(date) {
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: fmt.Sprintf("Date is invalid %s is not a proper date", date),
+			},
+		})
+		return
+	}
+
+	res, err := s.GuildChannelCreateComplex(i.GuildID, discordgo.GuildChannelCreateData{
+		Name: fmt.Sprintf("%s (%s)")
 	})
 }
 
@@ -128,6 +163,7 @@ func main() {
 		case discordgo.InteractionModalSubmit:
 			modalSubmission := i.ModalSubmitData()
 			if strings.HasPrefix(modalSubmission.CustomID, "todo") {
+				createNewTodoChannel(s, i, &modalSubmission)
 				// create channel here
 			}
 		}
