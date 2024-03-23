@@ -76,9 +76,36 @@ func isValidDate(dateStr string) bool {
 	return err == nil
 }
 
+func formatDate(dateStr string) (string, error) {
+	layout := "2006-01-02"
+	t, err := time.Parse(layout, dateStr)
+	if err != nil {
+		return "", err
+	}
+
+	day := t.Day()
+	month := t.Month().String()
+	year := t.Year()
+
+	// Format the day suffix
+	suffix := "th"
+	switch day {
+	case 1, 21, 31:
+		suffix = "st"
+	case 2, 22:
+		suffix = "nd"
+	case 3, 23:
+		suffix = "rd"
+	}
+
+	// Format the date string
+	formattedDate := t.Weekday().String() + " " + fmt.Sprintf("%d%s %s %d", day, suffix, month, year)
+	return formattedDate, nil
+}
+
 func createNewTodoChannel(s *discordgo.Session, i *discordgo.InteractionCreate, data *discordgo.ModalSubmitInteractionData) {
 	title := data.Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
-	date := data.Components[1].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
+	dateStr := data.Components[1].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
 	if len(title) <= 1 {
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -89,18 +116,22 @@ func createNewTodoChannel(s *discordgo.Session, i *discordgo.InteractionCreate, 
 		return
 	}
 
-	if !isValidDate(date) {
+	formatedDateStr, formatDateErr := formatDate(dateStr)
+
+	if formatDateErr != nil {
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: fmt.Sprintf("Date is invalid %s is not a proper date", date),
+				Content: fmt.Sprintf("Date is invalid %s is not a proper date", dateStr),
 			},
 		})
 		return
 	}
 
 	res, err := s.GuildChannelCreateComplex(i.GuildID, discordgo.GuildChannelCreateData{
-		Name: fmt.Sprintf("%s (%s)")
+		Name:     fmt.Sprintf("%s (%s)", title, formatedDateStr),
+		Type:     discordgo.ChannelTypeGuildText,
+		ParentID: "",
 	})
 }
 
