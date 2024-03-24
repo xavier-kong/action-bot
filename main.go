@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -72,7 +73,13 @@ func sendCreateTodoDialog(s *discordgo.Session, i *discordgo.InteractionCreate) 
 
 func isValidDate(dateStr string) bool {
 	layout := "2006-01-02"
-	_, err := time.Parse(layout, dateStr)
+	t, err := time.Parse(layout, dateStr)
+
+	now := time.Now()
+
+	if !t.After(now) {
+		err = errors.New("Date in the past this is not a time machine")
+	}
 	return err == nil
 }
 
