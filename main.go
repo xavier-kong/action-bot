@@ -128,11 +128,65 @@ func createNewTodoChannel(s *discordgo.Session, i *discordgo.InteractionCreate, 
 		return
 	}
 
-	res, err := s.GuildChannelCreateComplex(i.GuildID, discordgo.GuildChannelCreateData{
+	var parentChannelId string
+
+	for _, guild := range s.State.Guilds {
+		channels, _ := s.GuildChannels(guild.ID)
+		for _, c := range channels {
+			if c.Type != discordgo.ChannelTypeGuildCategory {
+				continue
+			}
+
+			if c.Name == "todo" {
+				parentChannelId = c.ID
+			}
+		}
+	}
+
+	if parentChannelId == "" {
+		res, err := s.GuildChannelCreateComplex(i.GuildID, discordgo.GuildChannelCreateData{
+			Name: "todo",
+			Type: discordgo.ChannelTypeGuildCategory,
+		})
+		if err != nil {
+			fmt.Println(err)
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: "Error! Error! Error!",
+				},
+			})
+			return
+		}
+
+		if res.ID != "" {
+			parentChannelId = res.ID
+		}
+	}
+
+	_, err := s.GuildChannelCreateComplex(i.GuildID, discordgo.GuildChannelCreateData{
 		Name:     fmt.Sprintf("%s (%s)", title, formatedDateStr),
 		Type:     discordgo.ChannelTypeGuildText,
-		ParentID: "",
+		ParentID: parentChannelId,
 	})
+	if err != nil {
+		fmt.Println(err)
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Error creating new todo! I have alerted my creator but perhaps he is not awake",
+			},
+		})
+	}
+
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: "Done! Click here to go to channel",
+		},
+	})
+
+	return
 }
 
 // Variables used for command line parameters
@@ -195,6 +249,7 @@ func main() {
 			modalSubmission := i.ModalSubmitData()
 			if strings.HasPrefix(modalSubmission.CustomID, "todo") {
 				createNewTodoChannel(s, i, &modalSubmission)
+				return
 				// create channel here
 			}
 		}
