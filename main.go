@@ -245,6 +245,20 @@ func main() {
 		registeredCommands[i] = cmd
 	}
 
+	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
+		if m.Author.ID == s.State.User.ID {
+			return
+		}
+
+		channelData, err := s.Channel(m.ChannelID)
+
+		if channelData.Name != "capture" {
+			s.ChannelMessageSend(m.ChannelID, "Send message not in capture")
+			s.ChannelMessageDelete(m.ChannelID, m.ID)
+			return
+		}
+	})
+
 	dg.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:
